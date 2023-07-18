@@ -1,0 +1,87 @@
+#!/usr/bin/python3
+
+import evdev
+from evdev import InputDevice, ecodes, categorize
+import rospy
+
+from car.msg import Event
+
+
+def connect_controller():
+	for device in evdev.list_devices():
+		input_device = InputDevice(device)
+
+		if input_device.name == "Xbox Wireless Controller":
+			print()
+			print("\"Xbox Wireless Controller\" connected")
+			print("• path:", input_device.path)
+			print("• phys:", input_device.phys)
+			return True, input_device
+
+	return False, None
+
+
+def main():
+	global controller
+	
+	while True:
+		try:
+			for e in controller.read_loop():
+				if rospy.is_shutdown():
+					exit(0)
+
+				event = Event()
+				event.input, event.value = "UNMAPPED", 0
+
+				if e.code == 310 and e.type == 1 and e.value == 1:
+					event.input, event.value = "LEFT_BUMPER", 1
+				elif e.code == 311 and e.type == 1 and e.value == 1:
+					event.input, event.value = "RIGHT_BUMPER", 1
+				# elif e.code == 10 and e.type == 3:
+				# 	event.input, event.value = "LEFT_TRIGGER", e.value
+				elif e.code == 9 and e.type == 3:
+					event.input, event.value = "RIGHT_TRIGGER", e.value
+				elif e.code == 1 and e.type == 3:
+					event.input, event.value = "LEFT_STICK_Y", e.value
+				elif e.code == 2 and e.type == 3:
+					event.input, event.value = "RIGHT_STICK_X", e.value
+				elif e.code == 16 and e.type == 3:
+					if e.value == -1:
+						event.input, event.value = "DPAD_LEFT", 1
+					elif e.value == 1:
+						event.input, event.value = "DPAD_RIGHT", 1
+				elif e.code == 17 and e.type == 3:
+					if e.value == -1:
+						event.input, event.value = "DPAD_UP", 1
+					elif e.value == 1:
+						event.input, event.value = "DPAD_DOWN", 1
+
+				if event.input != "UNMAPPED":
+					event_publisher.publish(event)
+
+		except OSError:
+			
+			# send kill code
+			event = Event()
+			event.input, event.value = "DISABLE", 1
+			event_publisher.publish(event)
+
+			# wait for controller reconnect
+			connected = False
+			seconds_elapsed = 0
+			print()
+			while not connected:
+				print(f"\rXbox controller disconnected. Waiting for reconnect... [{seconds_elapsed}]", end='')
+				connected, controller = connect_controller()
+				rospy.Rate(1).sleep()
+				seconds_elapsed += 1
+
+
+if __name__ == '__main__':
+	connected, controller = connect_controller()
+	if not connected:
+		raise ConnectionError("Xbox controller not connected")
+	else:
+		rospy.init_node('remote')
+		event_publisher = rospy.Publisher('/car/remote', Event, queue_size=1)
+		main()

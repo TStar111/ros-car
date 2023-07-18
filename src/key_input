@@ -1,0 +1,50 @@
+#!/home/mech/miniconda3/envs/ros_env/bin/python
+
+# Note the specification of conda python
+
+import rospy
+
+from car.msg import Event
+
+def main():
+
+    while True:
+        event = Event()
+        event.input, event.value = "UNMAPPED", 0
+        user_input = input("Choose (s, t): ")
+        user_value = input("Choose the input value (0-1000): ")
+        user_value = int(user_value)
+
+        if user_input == "s":
+            event.input, event.value = "STEER", user_value
+        elif user_input == "t":
+            event.input, event.value = "THROTTLE", user_value
+        # elif user_input == "w":
+        #     event.input, event.value = "DPAD_UP", 1
+        # elif user_input == "s":
+        #     event.input, event.value = "DPAD_DOWN", 1
+        # elif user_input == "q":
+        #     event.input, event.value = "DPAD_RIGHT", 1
+        # elif user_input == "lt":
+        #     event.input, event.value = "LEFT_TRIGGER", user_value
+        # elif user_input == "rt":
+        #     event.input, event.value = "RIGHT_TRIGGER", user_value
+        # elif user_input == "ls":
+        #     event.input, event.value = "LEFT_STICK_Y", user_value
+        # elif user_input == "rs":
+        #     event.input, event.value = "RIGHT_STICK_X", user_value
+        # elif user_input == "lb":
+        #     event.input, event.value = "LEFT_BUMPER", 1
+        # elif user_input == "rb":
+        #     event.input, event.value = "RIGHT_BUMPER", 1
+        
+        if event.input != "UNMAPPED":
+            event_publisher.publish(event)
+
+if __name__ == '__main__':
+    rospy.init_node('key_input')
+    event_publisher = rospy.Publisher('/car/remote', Event, queue_size=1)
+    main()
+
+
+

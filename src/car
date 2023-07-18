@@ -1,0 +1,120 @@
+#!/home/mech/miniconda3/envs/ros_env/bin/python
+
+# Note the specification of conda python
+
+import time
+
+import rospy
+from rospy.exceptions import ROSSerializationException
+from serial.serialutil import SerialException
+
+from maestro.servo import Servo
+from car.msg import Event, Status, ServoStatus
+
+
+def get_status(servo):
+    status = ServoStatus()
+    status.position = servo.get_position()
+    status.target = servo.target["current"]
+    status.acceleration = servo.acceleration
+
+    status.input_rom = servo.rom["input"]
+    status.max_rom = servo.rom["max"]
+    status.current_rom = servo.rom["current"]
+    status.rom_delta = servo.rom["delta"]
+
+    return status
+
+
+def on_event(event):
+    global disabled
+    try:
+        if event.input == "RIGHT_TRIGGER":
+            disabled = event.value < 100 # 100 point buffer instead of 0 in case of input drift
+
+        if event.input == "DISABLE" or (ENABLE_DMS and disabled):
+            throttle.disable()
+            steer.disable()
+        elif event.input == "THROTTLE":
+            throttle.set_target(event.value)
+        elif event.input == "STEER":
+            steer.set_target(event.value)
+        # elif event.input == "LEFT_BUMPER":
+        #     throttle.adjust_srom(by=-SROM_DELTA)
+        # elif event.input == "RIGHT_BUMPER":
+        #     throttle.adjust_srom(by=SROM_DELTA)
+        # elif event.input == "DPAD_UP":
+        #     throttle.adjust_acceleration(by=ACCELERATION_DELTA)
+        # elif event.input == "DPAD_DOWN":
+        #     throttle.adjust_acceleration(by=-ACCELERATION_DELTA)
+        # elif event.input == "DPAD_LEFT":
+        #     steer.adjust_acceleration(by=-ACCELERATION_DELTA)
+        # elif event.input == "DPAD_RIGHT":
+        #     steer.adjust_acceleration(by=ACCELERATION_DELTA)
+            
+    except SerialException:
+        pass
+
+
+def main():
+
+    print()
+    print("CAR SETTINGS")
+    print("--------------------------------")
+    print(f"FPS:                {FPS}")
+    print(f"INPUT ROM:          {INPUT_ROM}")
+    print(f"SERVO ROM:          {SERVO_ROM}")
+    print(f"ACCELERATION DELTA: {ACCELERATION_DELTA}")
+    print(f"SROM DELTA:         {SROM_DELTA}")
+    print()
+    print("DEAD MAN'S SWITCH:  {}".format("ON" if ENABLE_DMS else "OFF"))
+    print()
+
+    rate = rospy.Rate(FPS)
+    while not rospy.is_shutdown():
+        try:
+            status = Status()
+            status.throttle = get_status(throttle)
+            status.steer = get_status(steer)
+            status_publisher.publish(status)
+            # throttle_publisher.publish(get_status(throttle))
+            # steer_publisher.publish(get_status(steer))
+            rate.sleep()
+        except SerialException:
+            pass
+        except ROSSerializationException:
+            pass
+
+
+if __name__ == '__main__':
+    rospy.init_node('car')
+    rospy.Subscriber("/car/remote", Event, on_event, queue_size=1)
+
+    status_publisher = rospy.Publisher('/car/status', Status, queue_size=1)
+    # throttle_publisher = rospy.Publisher('/car/throttle', ServoStatus, queue_size=1)
+    # steer_publisher = rospy.Publisher('/car/steer', ServoStatus, queue_size=1)
+
+    FPS = rospy.get_param('~FPS', 30)
+    INPUT_ROM = rospy.get_param('~INPUT_ROM', [0, 1000])
+    SERVO_ROM = rospy.get_param('~SERVO_ROM', [4000, 8000])
+    # SERVO_ROM = rospy.get_param('~SERVO_ROM', [4250, 7798]) #Exact Servo ROM
+    # INPUT_ROM = rospy.get_param('~INPUT_ROM', [65536, 0])
+    # SERVO_ROM = rospy.get_param('~SERVO_ROM', [3968, 8000])
+    ACCELERATION_DELTA = rospy.get_param('~ACCELERATION_DELTA', 1)
+    SROM_DELTA = rospy.get_param('~SROM_DELTA', 0.025)
+    ENABLE_DMS = rospy.get_param('~ENABLE_DMS', False) # Modified
+
+    throttle = Servo(channel=1, irom=INPUT_ROM, srom=SERVO_ROM)
+    # throttle.set_srom(delta=.25)
+    throttle.set_acceleration(256) # max
+
+    steer = Servo(channel=0, irom=INPUT_ROM, srom=SERVO_ROM)
+    steer.set_acceleration(256) # max
+
+    disabled = ENABLE_DMS
+
+    throttle.set_target(500)
+    steer.set_target(500)
+    main()
+
+# Throttle needs about 620 to start going but then can be reduced to 590 for cruising

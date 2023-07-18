@@ -1,0 +1,7 @@
+<launch>
+    <arg name="FPS"           default="30" />
+
+    <node pkg="car" name="car_image" type="car_image" output="screen">
+        <param name="FPS" type="int" value="$(arg FPS)" />
+    </node>
+</launch>
