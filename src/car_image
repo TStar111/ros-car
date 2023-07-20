@@ -11,18 +11,20 @@ import cv2
 import rospy
 from rospy.exceptions import ROSSerializationException
 from serial.serialutil import SerialException
-# from cv_bridge import CvBridge
+from cv_bridge import CvBridge
 
 from maestro.servo import Servo
 from car.msg import Event, Status, ServoStatus
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
+from message_filters import ApproximateTimeSynchronizer, Subscriber
 
 from YOLOP.detect import detect
 from YOLOP.lib.models import get_net
 from YOLOP.lib.config import cfg
 
-from cv_bridge.cv_bridge import imgmsg_to_cv2
+# ALternate implementation of cv_bridge
+# from cv_bridge.cv_bridge import bgraimgmsg_to_cv2, depthimgmsg_to_cv2
 
 
 def get_status(servo):
@@ -39,20 +41,32 @@ def get_status(servo):
     return status
 
 
-def image_input(image):
+def image_input(bgra_image, depth_image):
 
     # Processing the image to something that can be passed into a model
     # No longer using cv_bridge because of incompatability with python3
     # cv_image = bridge.imgmsg_to_cv2(image)
     
-    # This will return an rgb image
-    cv_image = imgmsg_to_cv2(image)
+    # This will return an bgr image
+    cv_bgrimage = bridge.imgmsg_to_cv2(bgra_image, desired_encoding="bgr8")
+
+    # This will return an indexable depth image
+    # Testing has the value at weird ranges. It's definitely not meters or mms but it does output values
+    # TODO: Investigate what the values correlate to
+    cv_depthimage = bridge.imgmsg_to_cv2(depth_image, desired_encoding="32FC1")
+
 
     # det is a tensor object. 2 dimension, rows represent each detection
      # The output looks to be coordinates of upper left and bottom right, confidence, class
-    det, da_seg_mask, ll_seg_mask = detect(model, cv_image, device, IMG_SIZE, CONF_THRES, IOU_THRES)
+    det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
 
-    print(det)
+    # For each point, identify the center pixel depth
+    num_detect = len(det)
+    for i in range(num_detect):
+        x = int((det[i][0] + det[i][3])/2)
+        y = int((det[i][1] + det[i][4])/2)
+        print(cv_depthimage[x][y])
+
     # TODO: Test the output to see if it works
 
 def file_input(string):
@@ -103,8 +117,16 @@ def main():
     # vid_path, vid_writer = None, None
 if __name__ == '__main__':
     rospy.init_node('car')
-    rospy.Subscriber("/rgb/image_raw", Image, image_input, queue_size=1)
+    # rospy.Subscriber("/rgb/image_raw", Image, image_input, queue_size=1)
     rospy.Subscriber("/test", String, file_input, queue_size=1)
+
+    # Create subscribers for the RGB (actually bgra) and depth image topics
+    rgb_sub = Subscriber('/rgb/image_raw', Image)
+    depth_sub = Subscriber('/depth/image_raw', Image)
+
+    # Synchronize the RGB and depth image messages
+    sync = ApproximateTimeSynchronizer([rgb_sub, depth_sub], queue_size=10, slop=0.1)
+    sync.registerCallback(image_input)
 
     status_publisher = rospy.Publisher('/car/status', Status, queue_size=1)
 
@@ -120,7 +142,7 @@ if __name__ == '__main__':
     IOU_THRES = rospy.get_param('~IOU_THRES', 0.45)
 
     # Eliminating CvBridge because it doesn't play nice with python3
-    # bridge = CvBridge()
+    bridge = CvBridge()
 
     # TODO: I don't really know why I did this, I just needed a device object
     device = torch.device('cpu')
