@@ -1,7 +1,16 @@
 <launch>
     <arg name="FPS"           default="30" />
+    <arg name="P"           default="0.5" />
+    <arg name="I"           default="0" />
+    <arg name="D"           default="0.05" />
+    <arg name="RATE"           default="0.01" />
+
 
     <node pkg="car" name="car_image" type="car_image" output="screen">
         <param name="FPS" type="int" value="$(arg FPS)" />
+        <param name="P" type="float" value="$(arg P)" />
+        <param name="I" type="float" value="$(arg I)" />
+        <param name="D" type="float" value="$(arg D)" />
+        <param name="RATE" type="float" value="$(arg RATE)" />
     </node>
 </launch>
