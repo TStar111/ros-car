@@ -48,12 +48,9 @@ def image_input(bgra_image, depth_image):
     # Processing the image to something that can be passed into a model
     # No longer using cv_bridge because of incompatability with python3
     # cv_image = bridge.imgmsg_to_cv2(image)
-
-    # Goal is the center of the image
-    goal = bgra_image.width/2
-    
+                                   
     # This will return an bgr image
-    cv_bgrimage = bridge.imgmsg_to_cv2(bgra_image, desired_encoding="bgr8")
+    cv_bgrimage = bridge.imgmsg_to_cv2(bgra_image, desired_encoding="rgb8")
 
     # This will return an indexable depth image
     # Testing has the value at weird ranges. It's definitely not meters or mms but it does output values
@@ -65,30 +62,51 @@ def image_input(bgra_image, depth_image):
      # The output looks to be coordinates of upper left and bottom right, confidence, class
     det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
 
+    # Goal is the center of the image
+    # Tuned to the ouput image size (should be 640)
+    goal = da_seg_mask.shape[1] // 2
+
     # Identify the closest bounding box in terms of depth
+    # num_detect = len(det)
+    # print("Num detect: %d" % num_detect)
+    # closest = None
+    # closest_depth = None
+    # if num_detect != 0:
+    #     for i in range(num_detect):
+    #         x = int((det[i][0] + det[i][3])/2)
+    #         y = int((det[i][1] + det[i][4])/2)
+    #         curr_depth = cv_depthimage[x][y]
+    #         if curr_depth != 0:
+    #             if (closest_depth is None) or (curr_depth < closest_depth):
+    #                 # Grab their float center value
+    #                 closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
+    #                 closest_depth = curr_depth
+
+    # Identify the closest bounding box in terms of box size
     num_detect = len(det)
+    print("Num detect: %d" % num_detect)
     closest = None
-    closest_depth = None
+    closest_size = None
     if num_detect != 0:
         for i in range(num_detect):
-            x = int((det[i][0] + det[i][3])/2)
-            y = int((det[i][1] + det[i][4])/2)
-            curr_depth = cv_depthimage[x][y]
-            if curr_depth != 0:
-                if (closest_depth is None) or (curr_depth < closest_depth):
-                    # Grab their float center value
-                    closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
-                    closest_depth = curr_depth
+            x = int(abs(det[i][0] - det[i][3]))
+            y = int(abs(det[i][1] - det[i][4]))
+            curr_size = x * y
+            if (closest_size is None) or (curr_size > closest_size):
+                # Grab their float center value
+                closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
+                closest_size = curr_size
+
 
     # Calculate controls
     theta, speed = None, None
     if closest is not None:
-        theta, speed = follower.control(goal, closest[0])
+        theta, speed = follower.control(goal, closest[0].item())
 
-    if (theta is not None) and (speed is not None):
-        # TODO: What conversions do we need to do before passing to SERVOs
-        steer.set_target(theta)
-        throttle.set_target(speed)
+    # if (theta is not None) and (speed is not None):
+    #     # TODO: What conversions do we need to do before passing to SERVOs
+    #     steer.set_target(theta)
+    #     throttle.set_target(speed)
 
 
 def file_input(string):
@@ -154,7 +172,7 @@ if __name__ == '__main__':
 
     # Car parameters
     FPS = rospy.get_param('~FPS', 30)
-    INPUT_ROM = rospy.get_param('~INPUT_ROM', [0, 1000])
+    INPUT_ROM = rospy.get_param('~INPUT_ROM', [-640, 640])
     SERVO_ROM = rospy.get_param('~SERVO_ROM', [4000, 8000])
     ACCELERATION_DELTA = rospy.get_param('~ACCELERATION_DELTA', 1)
     SROM_DELTA = rospy.get_param('~SROM_DELTA', 0.025)

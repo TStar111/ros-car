@@ -19,6 +19,7 @@ class Follower:
 		theta - float - represents what the steering angle should be
 		speed - float - represents what the speed should be
 		"""
+
 		# Calculate the new desired angle
 		error = target - current
 		integral = self.integral_prior + error * self.rate
@@ -29,8 +30,12 @@ class Follower:
 		self.error_prior = error
 		self.integral_prior = integral
 
+		# Limit checks
+		# Deprecated because I chnged the range of the servos
+		# theta = min(1000, max(0, theta))
+
 		# TODO: Firgure out how to manage speed with depth input
-		return theta, 0.5
+		return theta, 0
 
 
 # Previous example of PID control
