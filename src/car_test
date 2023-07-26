@@ -18,23 +18,37 @@ def main():
 
     steer.set_target(100)
 
+    print("Left")
+    print(steer.target["input"])
+    print(steer.target["current"])
+
     time.sleep(2.0)
 
     steer.set_target(900)
+
+    print("Right")
+    print(steer.target["input"])
+    print(steer.target["current"])
 
     time.sleep(2.0)
 
     steer.set_target(500)
 
+    print(steer.target["current"])
+
+    print("Straight")
+    print(steer.target["input"])
+    print(steer.target["current"])
+
     time.sleep(1.0)
 
-    throttle.set_target(620)
-    time.sleep(1.0)
-    throttle.set_target(590)
+    # throttle.set_target(620)
+    # time.sleep(1.0)
+    # throttle.set_target(590)
 
-    time.sleep(2.0)
+    # time.sleep(2.0)
 
-    throttle.set_target(500)
+    # throttle.set_target(500)
 
 
 if __name__ == '__main__':

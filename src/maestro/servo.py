@@ -28,9 +28,9 @@ class Utils:
 			v_new = to_range[0]
 		else:
 			v_new = min(
-				to_range[0],
-				max(
 				to_range[1],
+				max(
+				to_range[0],
 				((((v - from_range[0]) * (to_range[1] - to_range[0])) / (from_range[1] - from_range[0])) + to_range[0])))
 		
 		return int(round(v_new))
