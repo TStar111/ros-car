@@ -1,10 +1,11 @@
 <launch>
     <arg name="FPS"           default="30" />
-    <arg name="P"           default="-0.5" />
+    <arg name="P"           default="-0.6" />
     <arg name="I"           default="0" />
     <arg name="D"           default="0" />
     <arg name="RATE"           default="0.01" />
-
+    <!-- IMG_SIZE will have a big impact on the speed of the YOLOP network, smaller -> faster -->
+    <arg name="IMG_SIZE"           default="320" />
 
     <node pkg="car" name="car_image" type="car_image" output="screen">
         <param name="FPS" type="int" value="$(arg FPS)" />
@@ -12,5 +13,6 @@
         <param name="I" type="double" value="$(arg I)" />
         <param name="D" type="double" value="$(arg D)" />
         <param name="RATE" type="double" value="$(arg RATE)" />
+        <param name="IMG_SIZE" type="int" value="$(arg IMG_SIZE)" />
     </node>
 </launch>

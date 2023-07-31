@@ -1,4 +1,4 @@
-#!/home/mech/miniconda3/envs/ros_env/bin/python
+#!/home/mech/miniconda3/envs/melodic36/bin/python
 
 # Note the specification of conda python
 
@@ -59,12 +59,18 @@ def image_input(bgra_image, depth_image):
 
 
     # det is a tensor object. 2 dimension, rows represent each detection
-     # The output looks to be coordinates of upper left and bottom right, confidence, class
+    # The output looks to be coordinates of upper left and bottom right, confidence, class
+    t0 = time.time()
     det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
+    t1 = time.time()
+    print("Time elapsed: %f" % (t1 - t0))
+
+    # To look at time of execution for rest of code
+    # t0 = time.time()
 
     # Goal is the center of the image
-    # Tuned to the ouput image size (should be 640)
-    goal = da_seg_mask.shape[1] // 2
+    # Tuned to the ouput image size (should be 640) Hardcoded
+    goal = 640
 
     # Identify the closest bounding box in terms of depth
     # num_detect = len(det)
@@ -82,31 +88,44 @@ def image_input(bgra_image, depth_image):
     #                 closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
     #                 closest_depth = curr_depth
 
-    # Identify the closest bounding box in terms of box size
+    # # Identify the closest bounding box in terms of box size
+    # num_detect = len(det)
+    # print("Num detect: %d" % num_detect)
+    # closest = None
+    # closest_size = None
+    # if num_detect != 0:
+    #     for i in range(num_detect):
+    #         x = int(abs(det[i][0] - det[i][3]))
+    #         y = int(abs(det[i][1] - det[i][4]))
+    #         curr_size = x * y
+    #         if (closest_size is None) or (curr_size > closest_size):
+    #             # Grab their float center value
+    #             closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
+    #             closest_size = curr_size
+
+    # Identify most confident box
     num_detect = len(det)
+    # print(det)
     print("Num detect: %d" % num_detect)
     closest = None
-    closest_size = None
     if num_detect != 0:
-        for i in range(num_detect):
-            x = int(abs(det[i][0] - det[i][3]))
-            y = int(abs(det[i][1] - det[i][4]))
-            curr_size = x * y
-            if (closest_size is None) or (curr_size > closest_size):
-                # Grab their float center value
-                closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
-                closest_size = curr_size
-
+        closest_idx = torch.argmax(det[:, 4])
+        closest = ((det[closest_idx][0] + det[closest_idx][3])/2, (det[closest_idx][1] + det[closest_idx][4])/2)
 
     # Calculate controls
     theta, speed = None, None
     if closest is not None:
         theta, speed = follower.control(goal, closest[0].item())
+        print("Goal: %d" % goal)
+        print("Curr: %d" % closest[0].item())
+        print("Theta: %f" % theta)
 
-    # if (theta is not None) and (speed is not None):
-    #     # TODO: What conversions do we need to do before passing to SERVOs
-    #     steer.set_target(theta)
+    if (theta is not None) and (speed is not None):
+        # TODO: What conversions do we need to do before passing to SERVOs
+        steer.set_target(theta)
     #     throttle.set_target(speed)
+    # t1 = time.time()
+    # print("Rest elapsed: %f" % (t1 - t0))
 
 
 def file_input(string):
@@ -196,8 +215,10 @@ if __name__ == '__main__':
     # Initialize PID Controller
     follower = Follower(P, I, D, RATE)
 
-    # TODO: I don't really know why I did this, I just needed a device object
-    device = torch.device('cpu')
+    
+    print("cuda available: ", end="")
+    print(torch.cuda.is_available())
+    device = torch.device('cuda:0')
     half = False
 
     # Load model
