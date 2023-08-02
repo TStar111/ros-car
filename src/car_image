@@ -19,6 +19,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 
+# Might need to be careful depending on structure of package
 from detect import detect
 from YOLOP.lib.models import get_net
 from YOLOP.lib.config import cfg
@@ -61,13 +62,11 @@ def image_input(bgra_image, depth_image):
     # det is a tensor object. 2 dimension, rows represent each detection
     # The output looks to be coordinates of upper left and bottom right, confidence, class
     t0 = time.time()
+    # Implementation with reduced model, see README.md
     det, lda_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
     # det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
     t1 = time.time()
     print("Time elapsed: %f" % (t1 - t0))
-
-    # To look at time of execution for rest of code
-    # t0 = time.time()
 
     # Goal is the center of the image
     # Tuned to the ouput image size (should be 640) Hardcoded
@@ -106,7 +105,6 @@ def image_input(bgra_image, depth_image):
 
     # Identify most confident box
     num_detect = len(det)
-    # print(det)
     print("Num detect: %d" % num_detect)
     closest = None
     if num_detect != 0:
@@ -129,12 +127,23 @@ def image_input(bgra_image, depth_image):
             # TODO: What conversions do we need to do before passing to SERVOs
             steer.set_target(theta)
         #     throttle.set_target(speed)
-        # t1 = time.time()
-        # print("Rest elapsed: %f" % (t1 - t0))
+    # TODO: This might be unnecessary now that we use the topic "/depth_to_rgb/image_raw"
     except IndexError:
         pass
 
 def bgra_input(bgra_image):
+    """
+    Processing for only the rgb image.
+
+    Parameters
+    ----------
+    bgra_image - ROS Image - from camera topic
+
+    Returns
+    -------
+    Sends controls to the SERVOs
+    
+    """
 
     # Processing the image to something that can be passed into a model
     # No longer using cv_bridge because of incompatability with python3
@@ -150,9 +159,6 @@ def bgra_input(bgra_image):
     det, da_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
     t1 = time.time()
     print("Time elapsed: %f" % (t1 - t0))
-
-    # To look at time of execution for rest of code
-    # t0 = time.time()
 
     # Goal is the center of the image
     # Tuned to the ouput image size (should be 640) Hardcoded
@@ -191,7 +197,6 @@ def bgra_input(bgra_image):
 
     # Identify most confident box
     num_detect = len(det)
-    # print(det)
     print("Num detect: %d" % num_detect)
     closest = None
     if num_detect != 0:
@@ -210,8 +215,6 @@ def bgra_input(bgra_image):
         # TODO: What conversions do we need to do before passing to SERVOs
         steer.set_target(theta)
     #     throttle.set_target(speed)
-    # t1 = time.time()
-    # print("Rest elapsed: %f" % (t1 - t0))
 
 
 def file_input(string):
@@ -266,6 +269,8 @@ def main():
 
 if __name__ == '__main__':
     rospy.init_node('car')
+    # Currently set for not using depth camera
+    # TODO: Implement flexible design with ROS parameters
     rospy.Subscriber("/rgb/image_raw", Image, bgra_input, queue_size=1)
     rospy.Subscriber("/test", String, file_input, queue_size=1)
 
@@ -304,7 +309,6 @@ if __name__ == '__main__':
 
     # Initialize PID Controller
     follower = Follower(P, I, D, RATE)
-
     
     print("cuda available: ", end="")
     print(torch.cuda.is_available())
@@ -331,7 +335,7 @@ if __name__ == '__main__':
     if half:
         model.half()  # to FP16
 
-    # Running a dummy input # TODO: Is this necessary?
+    # Running a dummy input # TODO: Is this necessary? YOLOP code does this
     img = torch.zeros((1, 3, IMG_SIZE, IMG_SIZE), device=device)  # init img
     _ = model(img.half() if half else img) if device != 'cpu' else None  # run once
     model.eval()
@@ -349,5 +353,4 @@ if __name__ == '__main__':
     throttle.set_target(0)
     steer.set_target(0)
     main()
-
-# Throttle needs about 620 to start going but then can be reduced to 590 for cruising
+    
