@@ -14,7 +14,7 @@ SOFTWARE
 --------
 ROS Melodic  
 Ubuntu 18.04  
-Python 3.6
+Python 3.6  
 
 Prerequisites
 -------------
@@ -27,18 +27,18 @@ Prerequisites
 
 Building
 --------
-To build, run the following:
-source <ROS distribution>
-source <cv_bridge workspace>
-catkin_make --only-pkg-with-deps car azure_kinect_ros_driver
+To build, run the following:  
+source <ROS distribution>  
+source <cv_bridge workspace>  
+catkin_make --only-pkg-with-deps car azure_kinect_ros_driver  
 
 
 Running
 -------
-cd ~/catkin_ws
-source devel/setup.bash
-source <cv_bridge workspace> --extend
-roslaunch launch/auto_car.launch
+cd ~/catkin_ws  
+source devel/setup.bash  
+source <cv_bridge workspace> --extend  
+roslaunch launch/auto_car.launch  
 
 You can also run the nodes seperately. You can also configure the corresponding parameters in the Azure_Kinect_ROS_Driver/launch/driver.launch and car/launch/car_image.launch files respectively
 
