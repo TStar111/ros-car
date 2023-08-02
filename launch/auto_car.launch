@@ -1,0 +1,14 @@
+<!-- For use, with the Azure Kinect ROS Driver-->
+
+<!-- Note you will need to configure the driver.launch file in the ROS driver with a time-delay to allow the model to be loaded-->
+<!-- To the azure_kinect_ros_driver node, add the following: launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@'" -->
+<!-- Add the corresponding argument, node_start_delay as a double, I used 25.0-->
+<!-- I also changed IMU Rate to 1-->
+
+<launch>
+    <include file="/home/mech/catkin_ws/src/car/launch/car_image.launch" />
+
+    <include file="/home/mech/catkin_ws/src/Azure_Kinect_ROS_Driver/launch/driver.launch" />
+</launch>
+
+<!-- I still need to figure out how to get it such that the model is initialized, before the camera starts pinging-->

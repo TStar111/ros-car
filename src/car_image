@@ -19,7 +19,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 
-from YOLOP.detect import detect
+from detect import detect
 from YOLOP.lib.models import get_net
 from YOLOP.lib.config import cfg
 
@@ -61,7 +61,93 @@ def image_input(bgra_image, depth_image):
     # det is a tensor object. 2 dimension, rows represent each detection
     # The output looks to be coordinates of upper left and bottom right, confidence, class
     t0 = time.time()
-    det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
+    det, lda_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
+    # det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
+    t1 = time.time()
+    print("Time elapsed: %f" % (t1 - t0))
+
+    # To look at time of execution for rest of code
+    # t0 = time.time()
+
+    # Goal is the center of the image
+    # Tuned to the ouput image size (should be 640) Hardcoded
+    goal = 640
+
+    # Identify the closest bounding box in terms of depth
+    # num_detect = len(det)
+    # print("Num detect: %d" % num_detect)
+    # closest = None
+    # closest_depth = None
+    # if num_detect != 0:
+    #     for i in range(num_detect):
+    #         x = int((det[i][0] + det[i][3])/2)
+    #         y = int((det[i][1] + det[i][4])/2)
+    #         curr_depth = cv_depthimage[x][y]
+    #         if curr_depth != 0:
+    #             if (closest_depth is None) or (curr_depth < closest_depth):
+    #                 # Grab their float center value
+    #                 closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
+    #                 closest_depth = curr_depth
+
+    # # Identify the closest bounding box in terms of box size
+    # num_detect = len(det)
+    # print("Num detect: %d" % num_detect)
+    # closest = None
+    # closest_size = None
+    # if num_detect != 0:
+    #     for i in range(num_detect):
+    #         x = int(abs(det[i][0] - det[i][3]))
+    #         y = int(abs(det[i][1] - det[i][4]))
+    #         curr_size = x * y
+    #         if (closest_size is None) or (curr_size > closest_size):
+    #             # Grab their float center value
+    #             closest = ((det[i][0] + det[i][3])/2, (det[i][1] + det[i][4])/2)
+    #             closest_size = curr_size
+
+    # Identify most confident box
+    num_detect = len(det)
+    # print(det)
+    print("Num detect: %d" % num_detect)
+    closest = None
+    if num_detect != 0:
+        closest_idx = torch.argmax(det[:, 4])
+        closest = (((det[closest_idx][0] + det[closest_idx][3])/2), ((det[closest_idx][1] + det[closest_idx][4])/2))
+
+    # Calculate controls
+    try:
+        theta, speed = None, None
+        if closest is not None:
+            closest = (int(closest[0].item()), int(closest[1].item()))
+            theta, speed = follower.control(goal, closest[0])
+            print(closest)
+            print("Goal: %d" % goal)
+            print("Curr: %d" % closest[0])
+            print("Theta: %f" % theta)
+            print("Depth: %f" % (cv_depthimage[closest[0]][closest[1]]))
+
+        if (theta is not None) and (speed is not None):
+            # TODO: What conversions do we need to do before passing to SERVOs
+            steer.set_target(theta)
+        #     throttle.set_target(speed)
+        # t1 = time.time()
+        # print("Rest elapsed: %f" % (t1 - t0))
+    except IndexError:
+        pass
+
+def bgra_input(bgra_image):
+
+    # Processing the image to something that can be passed into a model
+    # No longer using cv_bridge because of incompatability with python3
+    # cv_image = bridge.imgmsg_to_cv2(image)
+                                   
+    # This will return an bgr image
+    cv_bgrimage = bridge.imgmsg_to_cv2(bgra_image, desired_encoding="rgb8")
+
+    # det is a tensor object. 2 dimension, rows represent each detection
+    # The output looks to be coordinates of upper left and bottom right, confidence, class
+    t0 = time.time()
+    # det, da_seg_mask, ll_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
+    det, da_seg_mask = detect(model, cv_bgrimage, device, IMG_SIZE, CONF_THRES, IOU_THRES)
     t1 = time.time()
     print("Time elapsed: %f" % (t1 - t0))
 
@@ -173,19 +259,23 @@ def main():
             pass
         except ROSSerializationException:
             pass
+    
+    steer.set_target(0)
+    throttle.set_target(0)
     # vid_path, vid_writer = None, None
+
 if __name__ == '__main__':
     rospy.init_node('car')
-    # rospy.Subscriber("/rgb/image_raw", Image, image_input, queue_size=1)
+    rospy.Subscriber("/rgb/image_raw", Image, bgra_input, queue_size=1)
     rospy.Subscriber("/test", String, file_input, queue_size=1)
 
-    # Create subscribers for the RGB (actually bgra) and depth image topics
-    rgb_sub = Subscriber('/rgb/image_raw', Image)
-    depth_sub = Subscriber('/depth/image_raw', Image)
+    # # Create subscribers for the RGB (actually bgra) and depth image topics
+    # rgb_sub = Subscriber('/rgb/image_raw', Image)
+    # depth_sub = Subscriber('/depth_to_rgb/image_raw', Image)
 
-    # Synchronize the RGB and depth image messages
-    sync = ApproximateTimeSynchronizer([rgb_sub, depth_sub], queue_size=10, slop=0.1)
-    sync.registerCallback(image_input)
+    # # Synchronize the RGB and depth image messages
+    # sync = ApproximateTimeSynchronizer([rgb_sub, depth_sub], queue_size=10, slop=0.1)
+    # sync.registerCallback(image_input)
 
     status_publisher = rospy.Publisher('/car/status', Status, queue_size=1)
 
@@ -218,13 +308,25 @@ if __name__ == '__main__':
     
     print("cuda available: ", end="")
     print(torch.cuda.is_available())
-    device = torch.device('cuda:0')
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+    else:
+        device = torch.device("cpu")
     half = False
 
-    # Load model
+    # Load net and weights
     model = get_net(cfg)
     checkpoint = torch.load(WEIGHTS, map_location= device)
-    model.load_state_dict(checkpoint['state_dict'])
+
+    # Cleans up unused weights
+    unwanted_weights = ["model.34.conv.weight", "model.34.bn.weight", "model.34.bn.bias", "model.34.bn.running_mean", "model.34.bn.running_var", "model.34.bn.num_batches_tracked", "model.36.cv1.conv.weight", "model.36.cv1.bn.weight", "model.36.cv1.bn.bias", "model.36.cv1.bn.running_mean", "model.36.cv1.bn.running_var", "model.36.cv1.bn.num_batches_tracked", "model.36.cv2.weight", "model.36.cv3.weight", "model.36.cv4.conv.weight", "model.36.cv4.bn.weight", "model.36.cv4.bn.bias", "model.36.cv4.bn.running_mean", "model.36.cv4.bn.running_var", "model.36.cv4.bn.num_batches_tracked", "model.36.bn.weight", "model.36.bn.bias", "model.36.bn.running_mean", "model.36.bn.running_var", "model.36.bn.num_batches_tracked", "model.36.m.0.cv1.conv.weight", "model.36.m.0.cv1.bn.weight", "model.36.m.0.cv1.bn.bias", "model.36.m.0.cv1.bn.running_mean", "model.36.m.0.cv1.bn.running_var", "model.36.m.0.cv1.bn.num_batches_tracked", "model.36.m.0.cv2.conv.weight", "model.36.m.0.cv2.bn.weight", "model.36.m.0.cv2.bn.bias", "model.36.m.0.cv2.bn.running_mean", "model.36.m.0.cv2.bn.running_var", "model.36.m.0.cv2.bn.num_batches_tracked", "model.37.conv.weight", "model.37.bn.weight", "model.37.bn.bias", "model.37.bn.running_mean", "model.37.bn.running_var", "model.37.bn.num_batches_tracked", "model.39.conv.weight", "model.39.bn.weight", "model.39.bn.bias", "model.39.bn.running_mean", "model.39.bn.running_var", "model.39.bn.num_batches_tracked", "model.40.cv1.conv.weight", "model.40.cv1.bn.weight", "model.40.cv1.bn.bias", "model.40.cv1.bn.running_mean", "model.40.cv1.bn.running_var", "model.40.cv1.bn.num_batches_tracked", "model.40.cv2.weight", "model.40.cv3.weight", "model.40.cv4.conv.weight", "model.40.cv4.bn.weight", "model.40.cv4.bn.bias", "model.40.cv4.bn.running_mean", "model.40.cv4.bn.running_var", "model.40.cv4.bn.num_batches_tracked", "model.40.bn.weight", "model.40.bn.bias", "model.40.bn.running_mean", "model.40.bn.running_var", "model.40.bn.num_batches_tracked", "model.40.m.0.cv1.conv.weight", "model.40.m.0.cv1.bn.weight", "model.40.m.0.cv1.bn.bias", "model.40.m.0.cv1.bn.running_mean", "model.40.m.0.cv1.bn.running_var", "model.40.m.0.cv1.bn.num_batches_tracked", "model.40.m.0.cv2.conv.weight", "model.40.m.0.cv2.bn.weight", "model.40.m.0.cv2.bn.bias", "model.40.m.0.cv2.bn.running_mean", "model.40.m.0.cv2.bn.running_var", "model.40.m.0.cv2.bn.num_batches_tracked", "model.42.conv.weight", "model.42.bn.weight", "model.42.bn.bias", "model.42.bn.running_mean", "model.42.bn.running_var", "model.42.bn.num_batches_tracked"]
+    pretrained_model_state_dict = {k:v for k, v in checkpoint['state_dict'].items() if k not in unwanted_weights}
+
+    # For if no weights are to be removed
+    # model.load_state_dict(checkpoint['state_dict'])
+
+    # Load model
+    model.load_state_dict(pretrained_model_state_dict)
     model = model.to(device)
     if half:
         model.half()  # to FP16
@@ -244,8 +346,8 @@ if __name__ == '__main__':
 
     disabled = ENABLE_DMS
 
-    throttle.set_target(500)
-    steer.set_target(500)
+    throttle.set_target(0)
+    steer.set_target(0)
     main()
 
 # Throttle needs about 620 to start going but then can be reduced to 590 for cruising
