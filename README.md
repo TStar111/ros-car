@@ -2,6 +2,10 @@
 
 Module desrcibing the ROS interface for the development of a semi-autonomous robotic car.
 
+Author
+------
+Ricky Gao
+
 HARDWARE
 --------
 Traxxas RC Car  
