@@ -17,7 +17,6 @@ class Follower:
 		Returns
 		-------
 		theta - float - represents what the steering angle should be
-		speed - float - represents what the speed should be
 		"""
 
 		# Calculate the new desired angle
@@ -35,7 +34,7 @@ class Follower:
 		# theta = min(1000, max(0, theta))
 
 		# TODO: Firgure out how to manage speed with depth input
-		return theta, 0
+		return theta
 
 
 # Previous example of PID control

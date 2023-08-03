@@ -45,11 +45,10 @@ You can also run the nodes seperately. You can also configure the corresponding 
 Future Notes
 ------------
 1. Areas that have been left open have a TODO marker.
-2. When I stopped work, the throttle had not been implemented. This should be quick as the only reason I left it unimplemented was to prevent unnecessary damage to the car.
-3. The camera struggloes to identify objects in the left side. I think that it relates to the hardware having the camera on the right, but more investigation needs to be done here.
-4. Sometimes the camera just crashes, you will just need to unplug it and replug it to reset it.
-5. I have not incorporated th driveable area or lane localization into my code. The easiest way to do this would be to incorporate that information in the PID controller.
-6. If you have time, I highly reccomend porting everything over to ROS2. This will help a lot with versioning issues.
+2. The camera struggloes to identify objects in the left side. I think that it relates to the hardware having the camera on the right, but more investigation needs to be done here.
+3. Sometimes the camera just crashes, you will just need to unplug it and replug it to reset it.
+4. I have not incorporated th driveable area or lane localization into my code. The easiest way to do this would be to incorporate that information in the PID controller.
+5. If you have time, I highly reccomend porting everything over to ROS2. This will help a lot with versioning issues.
 
 Contact
 -------

@@ -88,8 +88,8 @@ def detect(model, image0, DEVICE, IMG_SIZE, CONF_THRES, IOU_THRES):
         image = image.unsqueeze(0)
     # Inference
     t1 = time_synchronized()
-    # det_out, da_seg_out,ll_seg_out= model(image)
-    det_out, ll_seg_out = model(image)
+    det_out, da_seg_out,ll_seg_out= model(image)
+    # det_out, ll_seg_out = model(image)
     t2 = time_synchronized()
     # if i == 0:
     #     print(det_out)
@@ -111,11 +111,11 @@ def detect(model, image0, DEVICE, IMG_SIZE, CONF_THRES, IOU_THRES):
     pad_h = int(pad_h)
     ratio = shapes[1][0][1]
 
-    # da_predict = da_seg_out[:, :, pad_h:(height-pad_h),pad_w:(width-pad_w)]
-    # da_seg_mask = torch.nn.functional.interpolate(da_predict, scale_factor=(1/ratio), mode='bilinear')
-    # _, da_seg_mask = torch.max(da_seg_mask, 1)
-    # da_seg_mask = da_seg_mask.int().squeeze().cpu().numpy()
-    # # da_seg_mask = morphological_process(da_seg_mask, kernel_size=7)
+    da_predict = da_seg_out[:, :, pad_h:(height-pad_h),pad_w:(width-pad_w)]
+    da_seg_mask = torch.nn.functional.interpolate(da_predict, scale_factor=(1/ratio), mode='bilinear')
+    _, da_seg_mask = torch.max(da_seg_mask, 1)
+    da_seg_mask = da_seg_mask.int().squeeze().cpu().numpy()
+    # da_seg_mask = morphological_process(da_seg_mask, kernel_size=7)
 
     
     ll_predict = ll_seg_out[:, :,pad_h:(height-pad_h),pad_w:(width-pad_w)]
@@ -138,5 +138,5 @@ def detect(model, image0, DEVICE, IMG_SIZE, CONF_THRES, IOU_THRES):
     # cv2.imshow('image', image0)
     # cv2.waitKey(1)  # 1 millisecond
 
-    # return det, da_seg_mask, ll_seg_mask
-    return det, ll_seg_mask
+    return det, da_seg_mask, ll_seg_mask
+    # return det, ll_seg_mask
