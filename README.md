@@ -50,6 +50,10 @@ Future Notes
 4. I have not incorporated th driveable area or lane localization into my code. The easiest way to do this would be to incorporate that information in the PID controller.
 5. If you have time, I highly reccomend porting everything over to ROS2. This will help a lot with versioning issues.
 
+Demo
+----
+There is a video demo of the car in the /pictures directory
+
 Contact
 -------
 If you have any more questions, feel free to reach me at rickyg@andrew.cmu.edu
