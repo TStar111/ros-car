@@ -192,21 +192,26 @@ def bgra_input(bgra_image):
         closest = det[closest_idx]
 
     # Calculate controls
-    theta, speed = None, None
+    theta, speed = None, 0
 
     # Identify the lanes
-    midpoint = ll_seg_mask.shape[0]//2
+    midpoint = ll_seg_mask.shape[0] // 2
     indices = np.where(ll_seg_mask[midpoint, :] == 1)[0]
     min_idx, max_idx = None, None
     if len(indices) > 0:
         min_idx = np.min(indices)
         max_idx = np.max(indices)
+        # print("Min: %d" % min_idx)
+        # print("Maz: %d" % max_idx)
 
     # If lanes detected, use lane to dictate steering
-    theta, speed = None, 0
+    # TODO: Need to figure out the exact tinkering of parameters for the lanes
+    #       The below was just one iteration of my tinkering, it doesn't work perfectly
     if min_idx != max_idx:
-        lane_curr = 1024
-        lane_goal = (min_idx + max_idx) // 2
+        lane_goal = 1024
+        lane_curr = ((min_idx + max_idx) // 2) + 200
+        # curr_error = lane_goal - lane_curr
+        # lane_goal += 2 * curr_error
         theta = follower.control(lane_goal, lane_curr)
         print("Lane goal: %d" % lane_goal)
         print("Curr: %d" % lane_curr)
@@ -230,7 +235,8 @@ def bgra_input(bgra_image):
     if (theta is not None):
         # TODO: What conversions do we need to do before passing to SERVOs
         steer.set_target(theta)
-        throttle.set_target(speed)
+
+    throttle.set_target(speed)
 
 
 def file_input(string):
