@@ -32,7 +32,7 @@ Prerequisites
 Building
 --------
 To build, run the following:  
-source <ROS distribution>  
+source < ROS distribution>  
 source <cv_bridge workspace>  
 catkin_make --only-pkg-with-deps car azure_kinect_ros_driver  
 
