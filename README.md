@@ -1,6 +1,6 @@
 # ros-car
 
-Module desrcibing the ROS interface for the development of a semi-autonomous robotic car.
+Module desrcibing the ROS interface for the development of a semi-autonomous robotic car. I (Ricky) worked on this as part of my REU experience at Lehigh University
 
 Author
 ------
